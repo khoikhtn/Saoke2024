@@ -2,7 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Option 1: Run via npm
+
 First, run the development server:
+
+```bash
+npm install
+```
+
+Then:
 
 ```bash
 npm run dev
@@ -12,6 +20,14 @@ yarn dev
 pnpm dev
 # or
 bun dev
+```
+
+### Option 2: Run via docker
+
+```bash
+cd /path/to/app
+sudo docker build -t nam2107/saokeapp:latest .
+sudo docker run -d --name app -p 3001:3000 nam2107/saokeapp
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

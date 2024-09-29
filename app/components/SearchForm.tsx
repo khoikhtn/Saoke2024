@@ -69,7 +69,20 @@ const SearchForm: React.FC<SearchFormProps> = ({ fetchTransactions }) => {
           </div>
 
           <div className="mt-4">
-            <button type="submit">Find users</button>
+            <button
+              type="submit"
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#007BFF',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+            >
+              Find users
+            </button>
           </div>
         </form>
   )

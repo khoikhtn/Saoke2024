@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const maxAmount = url.searchParams.get('max_amount');
 
   // Cache key
-  const cacheKey = `transactions:${amountRange}:${searchDetail || ''}:${minAmount || ''}:${maxAmount || ''}`;
+  const cacheKey = `transactions:${amountRange}:${searchDetail || ''}`;
 
   try {
     // Connect to redis

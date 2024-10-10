@@ -1,4 +1,5 @@
 import { createConnection } from "@/app/libs/db";
+import { redisClient, connectRedis } from "@/app/libs/redis";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -9,50 +10,68 @@ export async function GET(req: NextRequest) {
   const minAmount = url.searchParams.get('min_amount');
   const maxAmount = url.searchParams.get('max_amount');
 
-  let sql = "SELECT * FROM temp";
-  const conditions: string[] = [];
-
-  // Handle amount range filtering
-  if (amountRange === '1') {
-    conditions.push("amount BETWEEN 0 AND 100000");
-  } else if (amountRange === '2') {
-    conditions.push("amount BETWEEN 100000 AND 500000");
-  } else if (amountRange === '3') {
-    conditions.push("amount BETWEEN 500000 AND 1000000");
-  } else if (amountRange === '4') {
-    conditions.push("amount BETWEEN 1000000 AND 5000000");
-  } else if (amountRange === '5') {
-    conditions.push("amount BETWEEN 5000000 AND 10000000");
-  } else if (amountRange === '6') {
-    conditions.push("amount BETWEEN 10000000 AND 50000000");
-  } else if (amountRange === '7') {
-    conditions.push("amount > 50000000");
-  }
-
-  // Handle custom min/max amount filtering
-  if (minAmount && maxAmount) {
-    conditions.push(`amount BETWEEN ${minAmount} AND ${maxAmount}`);
-  } else if (minAmount) {
-    conditions.push(`amount >= ${minAmount}`);
-  } else if (maxAmount) {
-    conditions.push(`amount <= ${maxAmount}`);
-  }
-
-  // Handle detail search filtering
-  if (searchDetail) {
-    conditions.push(`detail LIKE '%${searchDetail}%'`);
-  }
-
-  // Add conditions to the SQL query
-  if (conditions.length > 0) {
-    sql += " WHERE " + conditions.join(" AND ");
-  }
-
-  sql += " LIMIT 10";
+  // Cache key
+  const cacheKey = `transactions:${amountRange}:${searchDetail || ''}:${minAmount || ''}:${maxAmount || ''}`;
 
   try {
+    // Connect to redis
+    await connectRedis();
+
+    // Check if the data is already in Redis
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      console.log('Cache hit')
+      return NextResponse.json(JSON.parse(cachedData));
+    }
+
+    console.log('Cache miss')
+
+  // If not cached, fetch data from the database
+    let sql = "SELECT * FROM temp";
+    const conditions: string[] = [];
+
+    // Handle amount range filtering
+    if (amountRange === '1') {
+      conditions.push("amount BETWEEN 0 AND 100000");
+    } else if (amountRange === '2') {
+      conditions.push("amount BETWEEN 100000 AND 500000");
+    } else if (amountRange === '3') {
+      conditions.push("amount BETWEEN 500000 AND 1000000");
+    } else if (amountRange === '4') {
+      conditions.push("amount BETWEEN 1000000 AND 5000000");
+    } else if (amountRange === '5') {
+      conditions.push("amount BETWEEN 5000000 AND 10000000");
+    } else if (amountRange === '6') {
+      conditions.push("amount BETWEEN 10000000 AND 50000000");
+    } else if (amountRange === '7') {
+      conditions.push("amount > 50000000");
+    }
+
+    // Handle custom min/max amount filtering
+    if (minAmount && maxAmount) {
+      conditions.push(`amount BETWEEN ${minAmount} AND ${maxAmount}`);
+    } else if (minAmount) {
+      conditions.push(`amount >= ${minAmount}`);
+    } else if (maxAmount) {
+      conditions.push(`amount <= ${maxAmount}`);
+    }
+
+    // Handle detail search filtering
+    if (searchDetail) {
+      conditions.push(`detail LIKE '%${searchDetail}%'`);
+    }
+
+    // Add conditions to the SQL query
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ") + " LIMIT 10";
+    }
+
     const db = await createConnection();
     const [transactions] = await db.query(sql);
+
+    // Cache the database result in Redis
+    await redisClient.set(cacheKey, JSON.stringify(transactions));
 
     return NextResponse.json(transactions);
   } catch (error) {

@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import { formObjects } from '../objects/formObjects';
 import { queryStore } from '../store/query';
@@ -21,7 +23,7 @@ type SearchFormProps = {
 
 const SearchForm: React.FC<SearchFormProps> = ({ fetchTransactions }) => {
 
-  const { amountRange, updateAmountRange } = queryStore();
+  const { amountRange, updateAmountRange, detail, updateDetail } = queryStore();
   const formobj: objectsType[] = formObjects;
 
   return (
@@ -37,6 +39,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ fetchTransactions }) => {
                       id={item.id}
                       name={item.id}
                       className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-dark-primary dark:border-gray-600"
+                      onChange={(e) => {
+                        if (item.id === 'detail') {
+                          updateDetail(e.target.value);
+                          //console.log(detail)
+                        }
+                      }}
                     />
                   </div>
                 );
@@ -52,7 +60,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ fetchTransactions }) => {
                       onChange={(e) => {
                         if (item.id === 'amount_range') {
                           updateAmountRange(e.target.value);
-                          console.log(amountRange)
+                          //console.log(amountRange)
                         }
                       }}
                     >

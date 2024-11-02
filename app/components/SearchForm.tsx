@@ -89,7 +89,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ fetchTransactions }) => {
                 fontSize: '16px'
               }}
             >
-              Find users
+              Tìm kiếm giao dịch
             </button>
           </div>
         </form>

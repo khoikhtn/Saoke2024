@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     // Add conditions to the SQL query
     if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ") + " LIMIT 10";
+      sql += " WHERE " + conditions.join(" AND ");
     }
 
     const db = await createConnection();

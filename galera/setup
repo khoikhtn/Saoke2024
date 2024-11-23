@@ -1,0 +1,112 @@
+#!/bin/sh
+
+get_container_name() {
+    path="./compose.yaml"
+    ans=$(awk '/^[[:space:]]+container_name.*/ {print $2}' "$path" | tac)
+    echo "$ans"
+}
+
+# Start Containers
+up() {
+    printf "\e[0;32m================== Creating Containers ===================\e[0m\n"
+    sudo docker-compose up -d
+}
+
+# Stop, Remove Containers
+down() {
+    printf "\e[0;32m=============== Stop and Remove Containers ===============\e[0m\n"
+    # Stop Containers
+    for container in $(get_container_name); do
+        sudo docker stop "$container"
+        sudo docker rm "$container"
+    done
+    # Clear Volumes
+    if [ "$1" = "volume" ]; then
+        printf "\e[0;32m===================== Clear Volumes ======================\e[0m\n"
+        sudo docker volume prune
+    fi
+}
+
+# Setup Cluster
+load_cluster() {
+    printf "\e[0;32m=========== Loading Setup for Mariadb Cluster ============\e[0m\n"
+    # Create user for monitoring
+    sudo docker exec -t mariadb1 \
+        mariadb -u root -p1 -e \
+        "create user 'pmm'@'%' identified by 'pmm'; grant all privileges on *.* to 'pmm'@'%'; create user 'proxysql'@'%' identified by 'proxysql'; grant all privileges on *.* to 'proxysql'@'%'; flush privileges;"
+    # Create database (import, ...)
+    sudo docker exec -t mariadb1 \
+        mariadb -u root -p1 -e \
+        "use test; create table transactions ( date date, code varchar(50), amount bigint, detail text ); load data local infile '/saoke.csv' into table transactions fields terminated by ',' enclosed by '\"' lines terminated by '\n' ignore 1 rows;"
+    # Handle exception
+    if [ "$?" -eq 1 ]; then
+        printf "\e[0;33mNOTE: Table 'Transactions' is already exists. Do you want recreate one? [y/n]: \e[0m"
+        read -r ans
+        if [ "$ans" = "y" ]; then
+            sudo docker exec -t mariadb1 \
+                mariadb -u root -p1 -e \
+                "use test; drop table transactions;"
+            sudo docker exec -t mariadb1 \
+                mariadb -u root -p1 -e \
+                "use test; create table transactions ( date date, code varchar(50), amount bigint, detail text ); load data local infile '/saoke.csv' into table transactions fields terminated by ',' enclosed by '\"' lines terminated by '\n' ignore 1 rows;"
+            printf "\e[0;32mSuccess :>\e[0m\n"
+        fi
+    else
+        printf "\e[0;32mSuccess Loading data to table Transactions :>\e[0m\n"
+    fi
+    # Connect Galera Cluster to PMM Server
+    for mariadb in $(get_container_name); do
+        if echo "$mariadb" | grep -Eq 'mariadb'; then
+            sudo docker exec -t pmm-client \
+                pmm-admin add mysql \
+                --query-source=perfschema \
+                --username=pmm --password=pmm \
+                --service-name="$mariadb" \
+                --host="$mariadb" --port=3306
+            # Backup
+            # sudo docker exec -t "$mariadb" \
+                #     /bin/sh -c "nohup /bin/mariabackup_cron &"
+        fi
+    done
+    # Connect ProxySQL to PMM Server
+    sudo docker exec -it pmm-client \
+        pmm-admin add proxysql \
+        --username=pmm --password=pmm \
+        --service-name=proxysql \
+        --host=proxysql --port=6032
+}
+
+backup() {
+    time=$(date +%Y_%m_%d_%H_%M)
+    docker exec mariadb1 mkdir -p /backup/mariadb1_"$time"
+    docker exec mariadb1 mariabackup --backup --target-dir=/backup/mariadb1_"$time" --user=root --password=1
+    docker cp mariadb1:/backup/mariadb1_"$time" /tmp
+}
+
+# Build cli
+if [ "$1" = "s" ]; then
+    sudo docker ps
+elif [ "$1" = "u" ]; then
+    up
+elif [ "$1" = "d" ]; then
+    down
+elif [ "$1" = "r" ]; then
+    down volume
+    up
+elif [ "$1" = "l" ]; then
+    load_cluster
+elif [ "$1" = "b" ]; then
+    backup
+elif [ "$1" = "x" ]; then
+    get_container_name
+else
+    printf "1) This command is used to control containers in this project:\n"
+    printf "\t\e[0;32m./setup [command]\e[0m\n"
+    printf "2) Command:\n"
+    printf "\t\e[0;32m[s]\e[0mtatus  : Status  Containers\n"
+    printf "\t\e[0;32m[u]\e[0mp      : Start   Containers\n"
+    printf "\t\e[0;32m[d]\e[0mown    : Stop    Containers\n"
+    printf "\t\e[0;32m[r]\e[0mestart : Restart Containers\n"
+    printf "\t\e[0;32m[l]\e[0moad    : Load config for Cluster Database\n"
+    printf "\t\e[0;32m[b]\e[0mackup  : Backup Database\n"
+fi

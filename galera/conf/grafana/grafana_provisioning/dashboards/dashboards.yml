@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: "Node Exporter"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSecond: 5
+    allUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/exporter.json

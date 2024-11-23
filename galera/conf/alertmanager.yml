@@ -1,0 +1,26 @@
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  receiver: 'test'
+receivers:
+  - name: 'test'
+    email_configs:
+    - to: 'nguyenducnam2107@gmail.com'
+      from: 'nguyenducnam2107@gmail.com'
+      smarthost: 'smtp.gmail.com:587'
+      auth_username: 'nguyenducnam2107@gmail.com'
+      auth_identity: 'nguyenducnam2107@gmail.com'
+      auth_password: 'vdpu krcu rtoo dvak'
+      send_resolved: true
+    telegram_configs:
+    - bot_token: '7447058911:AAF9u4MynnnmT5njTjB-IjjH0yRCk_QCmyc'
+      chat_id: 5746322882
+      send_resolved: true
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']

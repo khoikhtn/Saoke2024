@@ -1,5 +1,4 @@
 import { createConnection } from "@/app/libs/db";
-import { redisClient, connectRedis } from "@/app/libs/redis";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -14,18 +13,6 @@ export async function GET(req: NextRequest) {
   const cacheKey = `transactions:${amountRange}:${searchDetail || ''}:${minAmount || ''}:${maxAmount || ''}`;
 
   try {
-    // Connect to redis
-    await connectRedis();
-
-    // Check if the data is already in Redis
-    const cachedData = await redisClient.get(cacheKey);
-
-    if (cachedData) {
-      console.log('Cache hit')
-      return NextResponse.json(JSON.parse(cachedData));
-    }
-
-    console.log('Cache miss')
 
   // If not cached, fetch data from the database
     let sql = "SELECT * FROM temp";
@@ -69,9 +56,6 @@ export async function GET(req: NextRequest) {
 
     const db = await createConnection();
     const [transactions] = await db.query(sql);
-
-    // Cache the database result in Redis
-    await redisClient.set(cacheKey, JSON.stringify(transactions));
 
     return NextResponse.json(transactions);
   } catch (error) {
